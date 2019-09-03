@@ -28,7 +28,6 @@ def main():
     glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 2)
     glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
     glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, True)
-    glfw.window_hint(glfw.RESIZABLE, True)
     glfw.window_hint(glfw.DOUBLEBUFFER, True)
     glfw.window_hint(glfw.DEPTH_BITS, 24)
     glfw.window_hint(glfw.SAMPLES, 4)
@@ -40,9 +39,6 @@ def main():
 
     glfw.make_context_current(window)
     glfw.set_key_callback(window, key_event_callback)
-    glfw.set_cursor_pos_callback(window, mouse_event_callback)
-    glfw.set_mouse_button_callback(window, mouse_button_callback)
-    glfw.set_window_size_callback(window, window_resize_callback)
 
     # -- setup shaders
     compute_program = shader.ComputeShader(RES(f"tracer_02.glsl"))
@@ -82,7 +78,7 @@ def main():
 
     # -- initialize compute program uniforms
     # compute_program.use()
-    work_group_size_x = 16
+    work_group_size_x = 8
     work_group_size_y = 8
 
     # -- camera
@@ -129,18 +125,6 @@ def main():
 def key_event_callback(window, key, scancode, action, mods):
     if key == glfw.KEY_ESCAPE:
         glfw.set_window_should_close(window, True)
-
-
-def mouse_event_callback(window, xpos, ypos):
-    pass
-
-
-def mouse_button_callback(window, button, action, mods):
-    pass
-
-
-def window_resize_callback(window, width, height):
-    gl.glViewport(0, width, 0, height)
 
 
 if __name__ == '__main__':
