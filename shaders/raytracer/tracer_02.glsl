@@ -17,7 +17,6 @@ uniform float seed;
 
 #define MAX_SCENE_BOUNCES 100.0
 #define NUM_BOXES 2
-#define NUM_SPHERES 2
 #define EPSILON 0.001f
 
 float _seed = seed;
@@ -40,13 +39,6 @@ struct box {
   material mat;
 };
 
-struct sphere {
-  vec3 center;
-  float radius;
-
-  material mat;
-};
-
 struct hitinfo {
   vec2 lambda ;
   vec3 p; // hit position
@@ -61,11 +53,6 @@ const box boxes[] = {
 
   // middle box
   {vec3(-0.5, 0.0, -0.5), vec3(0.5, 1.0, 0.5), {vec4(0.2, 0.2, 0.3, 1.0)}}
-};
-
-const sphere spheres[] = {
-  {vec3(-2.0, 1.0, 2.0), 0.5, {vec4(0.2, 0.5, 0.3, 1.0)}},
-  {vec3(2.0, 1.0, 2.0), 0.5, {vec4(0.6, 0.2, 0.9, 1.0)}}
 };
 
 
@@ -97,8 +84,8 @@ vec3 random_in_unit_sphere() {
   vec3 p;
   do {
       p = 2.0 * vec3(rand(), rand(), rand()) - vec3(1.0, 1.0, 1.0);
-    } while (length(p) >= 1.0);
-    return p;
+  } while (length(p) >= 1.0);
+  return p;
 }
 
 mat3 GetTangentSpace(vec3 normal)
@@ -129,7 +116,7 @@ vec3 SampleHemisphere(vec3 normal)
 
 bool scatter_lambertian(hitinfo info, out vec4 attenuation, out ray scattered) {
   vec3 target = info.p + info.n;
-  scattered.origin = info.p; // + info.n * 0.001f;
+  scattered.origin = info.p;
   scattered.direction =  SampleHemisphere(info.n);
   attenuation = info.mat.albedo;
   return true;
@@ -149,37 +136,6 @@ hitinfo intersect_box(ray r, const box b) {
   return hitinfo(vec2(tNear, tFar), position, normal, b.mat);
 }
 
-hitinfo intersect_sphere(ray r, const sphere s) {
-  vec3 p = r.origin - s.center;
-  float a = dot(r.direction, r.direction);
-  float b = 2 * dot(r.direction, p);
-  float c = dot(p, p) - s.radius;
-  float determinant = (b * b) - (4 * a * c);
-  if (determinant < 0)
-  {
-      return hitinfo(vec2(infinity, infinity), vec3(0.0), vec3(0.0), s.mat);
-  }
-  determinant = sqrt(determinant);
-  float t1 = (-b - determinant) / (2 * a);
-  float t2 = (-b + determinant) / (2 * a);
-
-  if (t1 < 0 && t2 > 0) {
-      t1 = t2;
-  }
-
-  if (t1 < EPSILON)
-  {
-      return hitinfo(vec2(infinity, infinity), vec3(0.0), vec3(0.0), s.mat);
-  }
-  vec3 target = r.origin + t1 * r.direction;
-  vec3 normal = normalize(target - s.center);
-  if (dot(normal, r.direction) > 0) {
-      normal = -normal;
-  }
-  return hitinfo(vec2(t1, t2), target, normal, s.mat);
-}
-
-
 bool intersect_scene(ray r, out hitinfo info) {
   float smallest = MAX_SCENE_BOUNCES;
   bool found = false;
@@ -197,21 +153,6 @@ bool intersect_scene(ray r, out hitinfo info) {
       found = true;
     }
   }
-
-  for (int i = 0; i < NUM_SPHERES; i++) {
-    hitinfo hi = intersect_sphere(r, spheres[i]);
-
-    if (hi.lambda.x > 0.0 && hi.lambda.x < hi.lambda.y && hi.lambda.x < smallest) {
-      info.lambda = hi.lambda;
-      info.p = hi.p;
-      info.n = hi.n;
-      info.mat = hi.mat;
-
-      smallest = hi.lambda.x;
-      found = true;
-    }
-  }
-
   return found;
 }
 
