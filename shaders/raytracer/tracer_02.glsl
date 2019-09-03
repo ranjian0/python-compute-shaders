@@ -16,8 +16,8 @@ uniform float seed;
 
 
 #define MAX_SCENE_BOUNCES 100.0
-#define NUM_BOXES 2
-#define EPSILON 0.001f
+#define EPSILON 0.001
+#define NUM_BOXES 5
 
 float _seed = seed;
 const float infinity = 1. / 0.;
@@ -41,36 +41,40 @@ struct box {
 
 struct hitinfo {
   vec2 lambda ;
-  vec3 p; // hit position
-  vec3 n; // hit normal
+  vec3 position;
+  vec3 normal;
 
   material mat;
 };
 
 const box boxes[] = {
   // ground box
-  {vec3(-5.0, -0.1, -5.0), vec3(5.0, 0.0, 5.0), {vec4(1.0, 0.25, 0.25, 1.0)}},
+  {vec3(-5.0, -0.9, -5.0), vec3(5.0, 0.0, 5.0), {vec4(0.8, 0.8, 0.9, 1.0)}},
 
-  // middle box
-  {vec3(-0.5, 0.0, -0.5), vec3(0.5, 1.0, 0.5), {vec4(0.2, 0.2, 0.3, 1.0)}}
+
+  {vec3(-0.5, 0.0, -0.5), vec3(0.5, 1.0, 0.5), {vec4(0.6, 0.7, 0.6, 1.0)}},
+  {vec3(1.0, 0.0, -0.5), vec3(2.0, 1.0, 0.5), {vec4(0.6, 0.5, 0.9, 1.0)}},
+  {vec3(-0.5, 0.0, 1.0), vec3(0.5, 1.0, 2.0), {vec4(0.6, 0.4, 0.3, 1.0)}}
+  {vec3(1.0, 0.0, 1.0), vec3(2.0, 0.5, 2.0), {vec4(0.6, 0.8, 0.9, 1.0)}},
 };
 
 
 vec3 box_normal_at_point(box b, vec3 p) {
-  if (p.z == b.min.z) {
+  if (abs(p.z - b.min.z) <= EPSILON) {
     return vec3(0.0, 0.0, -1.0);
-  } else if (p.z == b.max.z) {
+  } else if (abs(p.z - b.max.z) <= EPSILON) {
     return vec3(0.0, 0.0, 1.0);
-  } else if (p.x == b.min.x) {
+  } else if (abs(p.x - b.min.x) <= EPSILON) {
     return vec3(-1.0, 0.0, 0.0);
-  } else if (p.x == b.max.x) {
+  } else if (abs(p.x - b.max.x) <= EPSILON) {
     return vec3(1.0, 0.0, 0.0);
-  } else if (p.y == b.min.y) {
+  } else if (abs(p.y - b.min.y) <= EPSILON) {
     return vec3(0.0, -1.0, 0.0);
-  } else if (p.y == b.max.y) {
+  } else if (abs(p.y - b.max.y) <= EPSILON) {
     return vec3(0.0, 1.0, 0.0);
+  } else{
+    return vec3(0.0);
   }
-  return vec3(0.0);
 }
 
 float rand(){
@@ -88,40 +92,14 @@ vec3 random_in_unit_sphere() {
   return p;
 }
 
-mat3 GetTangentSpace(vec3 normal)
-{
-    // Choose a helper vector for the cross product
-    vec3 helper = vec3(1, 0, 0);
-    if (abs(normal.x) > 0.99f)
-        helper = vec3(0, 0, 1);
-    // Generate vectors
-    vec3 tangent = normalize(cross(normal, helper));
-    vec3 binormal = normalize(cross(normal, tangent));
-    return mat3(tangent, binormal, normal);
-}
-
-vec3 SampleHemisphere(vec3 normal)
-{
-    // Uniformly sample hemisphere direction
-    float PI = 3.141592653589793;
-    float cosTheta = rand();
-    float sinTheta = sqrt(max(0.0f, 1.0f - cosTheta * cosTheta));
-    float phi = 2 * PI * rand();
-    vec3 tangentSpaceDir = vec3(cos(phi) * sinTheta, sin(phi) * sinTheta, cosTheta);
-    // Transform direction to world space
-
-    return tangentSpaceDir * GetTangentSpace(normal);
-}
-
 
 bool scatter_lambertian(hitinfo info, out vec4 attenuation, out ray scattered) {
-  vec3 target = info.p + info.n;
-  scattered.origin = info.p;
-  scattered.direction =  SampleHemisphere(info.n);
+  vec3 target = info.position + info.normal + random_in_unit_sphere();
+  scattered.origin = info.position;
+  scattered.direction = target-info.position;
   attenuation = info.mat.albedo;
   return true;
 }
-
 
 hitinfo intersect_box(ray r, const box b) {
   vec3 tMin = (b.min - r.origin) / r.direction;
@@ -145,8 +123,8 @@ bool intersect_scene(ray r, out hitinfo info) {
 
     if (hi.lambda.x > 0.0 && hi.lambda.x < hi.lambda.y && hi.lambda.x < smallest) {
       info.lambda = hi.lambda;
-      info.p = hi.p;
-      info.n = hi.n;
+      info.position = hi.position;
+      info.normal = hi.normal;
       info.mat = hi.mat;
 
       smallest = hi.lambda.x;
@@ -166,7 +144,7 @@ vec4 trace(ray r, int depth) {
     if (scatter_lambertian(hit, attenuation, scattered)) {
       color *= attenuation;
 
-      while(depth < 50 && intersect_scene(scattered, hit)) {
+      while(depth < 100 && intersect_scene(scattered, hit)) {
         if (scatter_lambertian(hit, attenuation, scattered)) {
           color *= attenuation;
         } else {
@@ -187,7 +165,7 @@ vec4 trace(ray r, int depth) {
   return color;
 }
 
-layout (local_size_x = 16, local_size_y = 8) in;
+layout (local_size_x = 8, local_size_y = 8) in;
 void main(void) {
   ivec2 pix = ivec2(gl_GlobalInvocationID.xy);
   ivec2 size = imageSize(framebuffer);
@@ -196,7 +174,7 @@ void main(void) {
     return;
   }
 
-  int samples = 16;
+  int samples = 64;
   vec4 color = vec4(0.0);
   for (int i = 0; i < samples; i++) {
     float y = float(pix.y + rand()) / size.y;
