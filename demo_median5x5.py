@@ -88,9 +88,8 @@ def store_buffer_as_int(buf, storage_list):
 
 def write_gif(images):
     print(f"Writing GIF ...")
-    im = Image.frombytes("RGBA", (W, H), bytes(images[0]))
-    others = [Image.frombytes("RGBA", (W, H),  bytes(data)) for data in images[1:]]
-    im.save("out.gif", save_all=True, append_images=others, duration=150)
+    im, *others = [Image.frombytes("RGBA", (W, H),  bytes(data)) for data in images]
+    im.save("output/median5x5.gif", save_all=True, append_images=others, duration=150, loop=0)
 
 
 if __name__ == '__main__':
